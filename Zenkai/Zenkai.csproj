@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- Resolves to the repo-root tModLoader.targets, which forwards to the one in ModSources -->
+	<Import Project="..\tModLoader.targets" />
+
+	<PropertyGroup>
+		<AssemblyName>Zenkai</AssemblyName>
+		<RootNamespace>Zenkai</RootNamespace>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+</Project>

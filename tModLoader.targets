@@ -1,0 +1,9 @@
+<Project>
+	<!-- Zenkai/Zenkai.csproj imports ../tModLoader.targets. dotnet resolves the ModSources symlink to this
+	     repo, so this file forwards to the real one that tModLoader writes into ModSources. -->
+	<PropertyGroup>
+		<TmlModSources Condition="'$(TML_MODSOURCES)' != ''">$(TML_MODSOURCES)</TmlModSources>
+		<TmlModSources Condition="'$(TmlModSources)' == ''">$(HOME)/.local/share/Terraria/tModLoader/ModSources</TmlModSources>
+	</PropertyGroup>
+	<Import Project="$(TmlModSources)/tModLoader.targets" />
+</Project>

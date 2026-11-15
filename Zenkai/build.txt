@@ -1,0 +1,4 @@
+displayName = Zenkai
+author = Samiulh25
+version = 0.1.0
+buildIgnore = *.csproj, *.user, *.sln, obj\*, bin\*, .vs\*, .git\*, *.aseprite

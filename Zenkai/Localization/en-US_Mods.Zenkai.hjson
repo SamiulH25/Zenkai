@@ -1,0 +1,103 @@
+Keybinds: {
+	ChargeKi.DisplayName: Charge Ki
+	ToggleFlight.DisplayName: Toggle Flight
+	SkillSlot1.DisplayName: Skill Slot 1
+	SkillSlot2.DisplayName: Skill Slot 2
+	SkillSlot3.DisplayName: Skill Slot 3
+	SkillSlot4.DisplayName: Skill Slot 4
+	SkillMenu.DisplayName: Skill Menu
+	Transform.DisplayName: Transform
+	Revert.DisplayName: Revert Form
+	Unbound: Zenkai: {0} controls are not bound yet. Bind them in Settings, Controls, under Zenkai (suggested: C charge, F flight, Z X V G skills, K skill menu, T transform, Y revert).
+}
+
+DamageClasses.KiDamageClass.DisplayName: ki damage
+
+Skills: {
+	KiBlast: {
+		DisplayName: Ki Blast
+		Description: A quick bolt of ki thrown from the hand toward the cursor. Hold the key to keep firing.
+		LearnHint: Known from the start.
+	}
+
+	ChargedBeam: {
+		DisplayName: Charged Beam
+		Description: Hold to gather ki at your hands, release to unleash a beam that pierces everything in its path. It drains ki while it fires; press again to stop early. A longer charge hits harder and lasts longer. You cannot move while it fires.
+		LearnHint: Taught by a martial arts master once you have proven yourself against a powerful foe.
+	}
+
+	Rush: {
+		DisplayName: Rush
+		Description: Tap for a three-hit combo of lunging strikes. The third knocks the target into the air; tap again quickly to dash after it for a heavy blow. Enemies cannot touch you mid-lunge.
+		LearnHint: Known from the start.
+	}
+
+	Vanish: {
+		DisplayName: Vanish
+		Description: Blink a short distance in the direction you are holding, untouchable for a moment. Cannot pass through walls.
+		LearnHint: Taught by a martial arts master.
+	}
+}
+
+UI: {
+	SkillMenu: {
+		Title: Skills
+		Loadout: Loadout
+		Help: Click a skill, then a slot below to assign it. Right-click a slot to clear it.
+		Unlearned: Not learned yet
+		Cost: Cost: {0} ki
+		CostSustain: Cost: {0} ki, then {1} ki/s
+		Damage: Damage: {0}
+		Cooldown: Cooldown: {0}s
+		Forms: Forms
+		Locked: Not unlocked yet
+		FormTier: Form, tier {0}. Mastery {1}%
+		FormDamage: Ki damage +{0}%
+		FormSpeed: Speed +{0}%
+		FormDefense: Defense +{0}
+		FormKiDrain: Drains {0} ki/s ({1} at full mastery)
+		FormLifeDrain: Drains {0} life/s ({1} at full mastery)
+
+		Kind: {
+			Blast: Blast
+			Beam: Beam
+			Melee: Melee
+			Movement: Movement
+			Utility: Utility
+		}
+	}
+}
+
+Forms: {
+	Kaioken: {
+		DisplayName: Kaioken
+		Description: Push your body past its limits. Hits harder and moves faster, but burns your own life instead of ki, and gives out on its own when your life runs low. Mastery lowers the strain.
+		UnlockHint: Taught by a martial arts master.
+		UnlockMessage: You have learned to push past your limits. Press Transform to use Kaioken.
+	}
+
+	SuperSaiyan: {
+		DisplayName: Super Saiyan
+		Description: A golden awakening born of desperation. Greatly raises ki damage, speed and defense, but drains ki quickly until mastered. Run dry and you collapse out of it, exhausted.
+		UnlockHint: Some power only answers when everything is on the line. Face death against a mighty foe, once the world has turned dangerous.
+		UnlockMessage: Something inside you snaps. Your power erupts in gold!
+	}
+}
+
+Buffs: {
+	KiExhaustion: {
+		DisplayName: Ki Exhaustion
+		Description: Your ki recovers slowly and you cannot transform
+	}
+}
+
+Projectiles: {
+	FormBurst.DisplayName: Transformation Burst
+	KiBlastProjectile.DisplayName: Ki Blast
+	BeamProjectile.DisplayName: Charged Beam
+	RushStrike.DisplayName: Rush
+	KiFlash.DisplayName: Ki Flash
+	KiBurst.DisplayName: Ki Burst
+	StrikeSpark.DisplayName: Strike Spark
+	VanishAfterimage.DisplayName: Afterimage
+}
