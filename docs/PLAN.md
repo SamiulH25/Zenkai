@@ -8,7 +8,118 @@ headless shots but has not passed the visual gate** (the judge could not be run 
 2026-11-14, see Screenshots) and has not been played by hand. **Phase 3
 (transformations) is built** (2026-11-14) and renders in seven `form_*` scenes; the
 user waived the visual gate for it ("Forget the visual gate do phase 3"), so it was
-self-checked from crops only. The 3.5 slice play-test is pending. Nothing is committed.
+self-checked from crops only. The 3.5 slice play-test is pending. The overhaul (below) reworked phases 2 and 3 on top
+of that. Nothing is committed.
+
+### Persistent hand-test saves
+
+Installed in the normal local tModLoader save folders (not the screenshot sandbox):
+- Character **Zenkai Tester**, `Players/ZenkaiTester.plr` plus `.tplr`: Classic/softcore,
+  500 health, 200 mana, 5,000 maximum/current starting ki; all 15 skills learned,
+  all 11 forms unlocked at 100% mastery, eight populated skill slots and Rush on RMB.
+  Includes basic tools, a Magic Mirror, healing potions, building supplies and spare dummies.
+- World **Zenkai Training Ground**, `Worlds/ZenkaiTraining.wld` plus `.twld`: small,
+  Classic, corruption, seed `zenkai-training`. Spawn has a 201-tile-wide brick-topped
+  floor, 100 tiles of cleared headroom and three persistent target dummies.
+- Normal Save & Exit/autosave preserves later changes. No stat refills, scene automation
+  or forced inputs run during normal play. The regular controls/profile are untouched;
+  bind Charge Ki (C), Flight (F), Ki Stance (V), Skills (K), Transform (T) in Controls
+  if still unbound. Hold Transform for the wheel; stance hands mouse/number keys to skills.
+- `tools/test-save.sh` builds, creates fresh saves in a unique ignored `.playtest/run-*`
+  sandbox, launches a second real client to reload/verify progression, inventory, arena
+  and tile entities, then installs all four files with exclusive creation and SHA-256
+  copy verification. Refuses existing destination files and a running tModLoader.
+  A portable/reset backup lives at `.playtest/run-*/ZenkaiTestSaves.zip`; it is never
+  automatically reapplied to the installed saves. `TML_SAVE_DIR` can override the
+  destination for future installations. The generator is inert without `ZENKAI_TEST_SAVE`.
+- Verified: build passes (known packer warning only), native save/reload checks pass,
+  and a repeated install refuses to overwrite the existing character. On this tML
+  version permanent health/mana require `ConsumedLifeCrystals/ConsumedLifeFruit/ConsumedManaCrystals`;
+  setting only `statLifeMax/statManaMax` is lost on reload.
+
+### Aura edges and flight animation
+
+- Fixed the random flat aura edges in `Common/Visuals/AuraRenderer.cs`: the old
+  64x64-art-pixel canvas was smaller than the tongues, especially when stretched
+  behind a flying player. The canvas now grows in 16-pixel chunks to bound the
+  envelope and every tongue's length, width and curl, with transparent padding.
+  It retains its largest dimensions to avoid resize churn and keeps the body centred.
+- `Common/Players/FlightPlayer.cs` now animates relaxed composite arms, leg sway,
+  a gentle body bank and draw-only bob, with bent-knee hovering versus a stretched
+  glide. Speed blends the cycle from 72 to 40 ticks. Items, skills and ki charging
+  retain control of their arms; ending flight/death resets the rotation state.
+  `KiAuraLayer.cs` follows the same draw position, so bobbing does not detach it.
+- Added successive hover/glide phases, up/down/landing and SSJ3 flight shots to
+  `Dev/ShotRunner.cs`. The full run completes **61 scenes**. No sprite PNGs
+  were regenerated; motion uses the player's existing equipment.
+- Verification: `tools/build.sh` passes with only the known image-packer warning;
+  `dotnet run --project tests/Visuals.Tests -c Release` passes **3,600 frames**
+  across 12 palettes, three seeds and charge/hover/flight/overspeed/forced peaks.
+  The same regression fails against the pre-fix renderer on the first Ki charge
+  frame (an opaque pixel on the top texture border). The tests use graphics stubs;
+  the 61 real-game captures independently cover integration and visible poses.
+- Independent still-frame review: **aura 8/10, flight 7/10**, both above the 7/10
+  gate; no squared cutoff or body/aura detachment observed. Remaining polish:
+  flight limb articulation is deliberately subtle, not a bespoke sprite sheet.
+  Real-time pacing/control feel still needs a hand play-test: hover, accelerate,
+  reverse, ascend/descend, use an item/skill, then turn flight off and land.
+  Preview loops: `.judge/hover-preview.gif` and `.judge/glide-preview.gif`
+  (sampled phases, not continuous recordings).
+
+### Launch-crash investigation
+
+The reported launch crash was not reproduced with the current working tree.
+`tools/build.sh` passed (only the known packer image warning), and `tools/shots.sh`
+loaded Zenkai, entered the test world and completed all 49 scenes (`.shots/out/done.txt`).
+The captured normal-client log also reached a world with Zenkai, Cheat Sheet and
+FlyRarria enabled; it contains no managed crash stack. The fresh headless log has
+a caught TLS/network read exception and Steam networking assertions at shutdown,
+not a Zenkai launch exception. A failing-launch log or exact reproduction steps
+are still needed before changing gameplay code. No crash fix is claimed.
+
+## Overhaul (branch `overhaul`, built 2026-11-14, uncommitted)
+
+Phases 2 and 3 were reworked and widened after the baseline commit. It builds, and all 46
+`tools/shots.sh` scenes render with no exceptions. The overhaul has **not** been through the
+visual gate (judge not run) and has not been played by hand. Self-check on 2026-11-14 was from
+contact sheets and crops only.
+
+- **Skills (15):** Ki Blast, Barrage, Homing Blast, Energy Disc (`Content/Skills/KiBlast.cs`);
+  Charged, Piercing and Final Beam (`ChargedBeam.cs`, on the `Common/Skills/BeamSkill.cs` base);
+  Rush, Heavy Strike (`Rush.cs`); Vanish, Instant Movement (`Vanish.cs`); Explosive Wave,
+  Solar Flash, Ki Barrier, Spirit Bomb (`AreaSkills.cs`, projectiles in `AreaProjectiles.cs`).
+  Each has `Kind`, `Tier` and a learn condition (boss progression). Skill text is in the hjson.
+- **Skill bar:** 8 numbered slots plus a right-mouse slot; skills are used in the ki stance.
+- **Forms (11, `Content/Forms/`):** Kaioken, x3, x10, x20 (life drain); Super Saiyan 1 to 3,
+  God, Blue, Potential Unleashed, Ultra Instinct (tiers 4 to 11). Hold the Transform key for the
+  form wheel (`Common/UI/FormWheelSystem.cs`). The form classes were split out of the old
+  `Kaioken.cs` and `SuperSaiyan.cs`. A buffs pass (2026-11-14) gave every form more than stats:
+  see Transformations below.
+- **Stacking forms:** a form with `Stacks = true` (the Kaioken line) layers on top of any base form
+  instead of replacing it. `FormPlayer.Overlay` holds it, `Active` stays the base form. Bonuses,
+  ki drain, life drain and dodge add up; mastery grows for both; hair and eyes come from the base
+  form and the aura from the stacked one. On the wheel, pick a Kaioken rank while in a base form to
+  add it, pick the same rank again to take it off, pick a base form to swap it and keep Kaioken,
+  and the centre powers down everything. Low life drops only the Kaioken. Scene `form_ssj_kaioken`.
+- **Hair:** forms now recolour the player's own hair (`ModForm.HairColor/HairBlend/HairLift`,
+  `FormHairLayer.cs`). The `SuperSaiyanHair` sprite is gone; do not regenerate it.
+- **Flight** moved to `Common/Players/FlightPlayer.cs`. Chat messages go through
+  `Common/Systems/ZenkaiChat.cs`.
+- **Art:** `art/skills2.lua` makes the icons for the new skills and forms and the sprites for
+  the new projectiles (piercing and final beam pieces, energy disc, ki wave, spirit bomb, ki
+  barrier). Every `ModSkill` needs `Assets/Skills/<Name>.png`, every `ModForm`
+  `Assets/Forms/<Name>.png`, and a `BeamSkill` four pieces named `<AssetPrefix>Orb/Start/Body/End`.
+  A missing icon throws when the UI draws it.
+
+Gotchas found in the overhaul:
+- **hjson:** a quoteless value that starts with `{` (for example `{0}% chance`) parses as an
+  object and the whole mod fails to load (`Found '}' where a key name was expected`). Quote it.
+  The headless run then hangs on the loading screen instead of exiting, so check
+  `.shots/run.log` when `tools/shots.sh` times out.
+- **Shot scenes:** a skill starts on a fresh press. If the previous scene left a button held,
+  set `DevHeld` from the scene's tick callback (for example `t >= 3`), not in setup, or the
+  skill never starts (this hid the Spirit Bomb).
+- `ZENKAI_SHOT_FILTER` works with `tools/shots.sh` and is the quick way to re-render one scene.
 
 This file is the source of truth for design decisions and phase status. Update it when
 either changes. `docs/ROADMAP.md` breaks every phase into milestones with deliverables,
@@ -272,6 +383,28 @@ As built in phase 2 (2026-11-14):
   from near-death or a town NPC dying during a boss fight.
 - Mastery rises with time spent transformed in combat and lowers drain.
 - Definitions carry a race requirement field from the start, unused until races ship.
+
+As built in the form buffs pass (2026-11-14):
+- Forms carry more than damage, speed and defence: `ModForm` fields for ki crit, endurance,
+  flat max ki, ki regen and charge rate multipliers, skill cost multiplier and life regen,
+  applied in `FormPlayer.PostUpdateEquips` (life regen in `UpdateLifeRegen`, which the game
+  calls after the drain hook, so a stacked Kaioken nets against Potential Unleashed's regen).
+- Signature perks: the Kaioken ranks **surge** (`SurgeBonus`: ki damage multiplied by up to
+  `1 + SurgeBonus` as life falls) and charge ki 1.5x faster; Super Saiyan 2 arcs **lightning** onto the
+  nearest foe within 320 px every 1.5 s while in combat (30 base ki damage, `UpdateLightning`);
+  Ultra Instinct **counters** a slipped hit with a ki bolt at the attacker (1.5x Ki Blast
+  damage, no ki cost, `CounterAttack`). The transformation burst now also deals 20 base ki
+  damage; bosses take the damage but not the knockback.
+- Form damage is **multiplicative** (`KiDamageMultiplier`; user decision 2026-11-14: the boosts
+  should feel like Dragon Ball, not +35%). It multiplies gear's ki damage too, and stacked forms
+  multiply together. Ladder: Kaioken x2, x3 x3, x10 x6, x20 x10; SSJ x5, SSJ2 x10, SSJ3 x20;
+  Potential x12; God x30; Blue x50; Ultra Instinct x40. Blue + x20 Kaioken at 10% life is about
+  x860. Other buffs: SSJ1 +10% ki crit; SSJ2 +15% crit; SSJ3 +20% crit and 10% endurance; God 2x
+  ki regen and +50 max ki; Blue 0.7x skill cost and 12% endurance; Potential +100 max ki and
+  +2 life/s; Kaioken surge 30/45/60/80% by rank.
+- The skill menu details panel lists every buff and perk (hjson keys `FormCrit` to
+  `FormCounter`). Scenes `form_ssj2_lightning` and `form_instinct_counter` cover the new
+  visuals; the runner poses them with `FormPlayer.DevInCombat` and `DevForceDodge`.
 
 ### Training
 - Weighted clothing accessories: slower now, permanent small gains over time worn.

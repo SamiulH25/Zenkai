@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using ReLogic.Graphics;
 using Terraria;
 using Terraria.Audio;
 using Terraria.GameContent;
@@ -22,6 +22,7 @@ public class SkillMenuSystem : ModSystem
 {
 	static UserInterface ui;
 	static SkillMenuState state;
+	static readonly GameTime NoTime = new();
 
 	public static bool IsOpen => ui?.CurrentState != null;
 
@@ -71,7 +72,7 @@ public class SkillMenuSystem : ModSystem
 			return;
 		layers.Insert(index, new LegacyGameInterfaceLayer("Zenkai: Skill Menu", () => {
 			if (IsOpen)
-				ui.Draw(Main.spriteBatch, new GameTime());
+				ui.Draw(Main.spriteBatch, NoTime);
 			return true;
 		}, InterfaceScaleType.UI));
 	}
@@ -107,25 +108,40 @@ public class SkillMenuState : UIState
 }
 
 /// <summary>
-/// The skill menu: a grid of every skill (unlearned ones as silhouettes), details for the hovered
-/// or selected skill, and the four loadout slots. Click a skill, then a slot, to assign it;
-/// right-click a slot to clear it.
+/// The skill menu: a grid of every skill (unlearned ones as silhouettes), a grid of every form with
+/// its mastery, details for whatever is hovered or selected, and the loadout: the eight bar slots
+/// and the right-button slot. Click a skill, then a slot, to assign it; right-click a slot to
+/// clear it. The grids hold <see cref="SkillRows"/> and <see cref="FormRows"/> rows of
+/// <see cref="Columns"/>; raise those (and the panel grows with them) when content outgrows them.
 /// </summary>
 public class SkillMenuPanel : UIPanel
 {
-	const int W = 560;
-	const int H = 336;
 	const int Pad = 16;
-	const int Columns = 4;
+	const int Columns = 6;
+	const int SkillRows = 3;
+	const int FormRows = 2;
 	const int Cell = SkillSlotDrawer.Size + 8;
+	const int SlotStep = SkillSlotDrawer.Size + 4;
 	const int GridTop = 46;
+	const int FormsLabelTop = GridTop + SkillRows * Cell + 2;
+	const int FormsTop = FormsLabelTop + 24;
+	const int LoadoutLabelTop = FormsTop + FormRows * Cell + 10;
+	const int LoadoutTop = LoadoutLabelTop + 26;
 	const int DetailLeft = Pad + Columns * Cell + 8;
+	const int DetailWidth = 328;
+	const int W = DetailLeft + DetailWidth + Pad;
+	const int H = LoadoutTop + SkillSlotDrawer.Size + Pad;
+	const int SecondaryGap = 16;
+	const float TextScale = 0.85f;
+	const int LineHeight = 20;
+
+	static readonly Color Muted = new(160, 165, 190);
+	static readonly Color Body = new(200, 210, 235);
+	static readonly Color Hint = new(190, 200, 230);
+	static readonly Color Question = new(150, 160, 200);
 
 	public ModSkill Selected;
 	public ModForm SelectedForm;
-
-	const int FormsLabelTop = GridTop + Cell + 2;
-	const int FormsTop = FormsLabelTop + 24;
 
 	static string T(string key, params object[] args) => Language.GetTextValue("Mods.Zenkai.UI.SkillMenu." + key, args);
 
@@ -139,7 +155,8 @@ public class SkillMenuPanel : UIPanel
 		BorderColor = new Color(13, 13, 30);
 	}
 
-	List<ModSkill> Skills => SkillLoader.Ordered.ToList();
+	static IReadOnlyList<ModSkill> Skills => SkillLoader.Ordered;
+	static IReadOnlyList<ModForm> Forms => FormLoader.Ordered;
 
 	Vector2 Origin
 	{
@@ -149,44 +166,30 @@ public class SkillMenuPanel : UIPanel
 		}
 	}
 
-	Rectangle GridCell(int i) => new(Pad + i % Columns * Cell, GridTop + i / Columns * Cell, SkillSlotDrawer.Size, SkillSlotDrawer.Size);
-	static Rectangle LoadoutSlot(int i) => new(Pad + i * Cell, H - Pad - SkillSlotDrawer.Size, SkillSlotDrawer.Size, SkillSlotDrawer.Size);
+	static Rectangle Slot(int x, int y) => new(x, y, SkillSlotDrawer.Size, SkillSlotDrawer.Size);
+	static Rectangle SkillCell(int i) => Slot(Pad + i % Columns * Cell, GridTop + i / Columns * Cell);
+	static Rectangle FormCell(int i) => Slot(Pad + i % Columns * Cell, FormsTop + i / Columns * Cell);
+	/// <summary>Bar slots 0..7, then the right-button slot at index <see cref="SkillPlayer.SlotCount"/>.</summary>
+	static Rectangle LoadoutSlot(int i) => Slot(Pad + i * SlotStep + (i >= SkillPlayer.SlotCount ? SecondaryGap - 4 : 0), LoadoutTop);
 	static Rectangle CloseButton => new(W - 34, 8, 24, 24);
 
 	static Rectangle Offset(Rectangle r, Vector2 o) => new(r.X + (int)o.X, r.Y + (int)o.Y, r.Width, r.Height);
 
-	int HoveredCell(Vector2 mouse)
+	/// <summary>Index of the first of <paramref name="count"/> cells under the mouse, or -1.</summary>
+	int Hovered(Vector2 mouse, int count, Func<int, Rectangle> cell)
 	{
-		List<ModSkill> skills = Skills;
-		for (int i = 0; i < skills.Count; i++) {
-			if (Offset(GridCell(i), Origin).Contains(mouse.ToPoint()))
+		Point p = mouse.ToPoint();
+		Vector2 o = Origin;
+		for (int i = 0; i < count; i++) {
+			if (Offset(cell(i), o).Contains(p))
 				return i;
 		}
 		return -1;
 	}
 
-	List<ModForm> Forms => FormLoader.Ordered.ToList();
-
-	static Rectangle FormCell(int i) => new(Pad + i % Columns * Cell, FormsTop + i / Columns * Cell, SkillSlotDrawer.Size, SkillSlotDrawer.Size);
-
-	int HoveredForm(Vector2 mouse)
-	{
-		List<ModForm> forms = Forms;
-		for (int i = 0; i < forms.Count; i++) {
-			if (Offset(FormCell(i), Origin).Contains(mouse.ToPoint()))
-				return i;
-		}
-		return -1;
-	}
-
-	int HoveredSlot(Vector2 mouse)
-	{
-		for (int i = 0; i < SkillPlayer.SlotCount; i++) {
-			if (Offset(LoadoutSlot(i), Origin).Contains(mouse.ToPoint()))
-				return i;
-		}
-		return -1;
-	}
+	int HoveredSkill(Vector2 mouse) => Hovered(mouse, Math.Min(Skills.Count, Columns * SkillRows), SkillCell);
+	int HoveredForm(Vector2 mouse) => Hovered(mouse, Math.Min(Forms.Count, Columns * FormRows), FormCell);
+	int HoveredSlot(Vector2 mouse) => Hovered(mouse, SkillPlayer.SlotCount + 1, LoadoutSlot);
 
 	public override void Update(GameTime gameTime)
 	{
@@ -204,7 +207,7 @@ public class SkillMenuPanel : UIPanel
 			SkillMenuSystem.SetOpen(false);
 			return;
 		}
-		int cell = HoveredCell(mouse);
+		int cell = HoveredSkill(mouse);
 		if (cell >= 0) {
 			ModSkill skill = Skills[cell];
 			Selected = Selected == skill ? null : skill;
@@ -222,7 +225,7 @@ public class SkillMenuPanel : UIPanel
 		}
 		int slot = HoveredSlot(mouse);
 		if (slot >= 0 && Selected != null && sp.Knows(Selected)) {
-			sp.SetSlot(slot, Selected);
+			Assign(sp, slot, Selected);
 			Selected = null;
 			SoundEngine.PlaySound(SoundID.Grab);
 		}
@@ -233,18 +236,27 @@ public class SkillMenuPanel : UIPanel
 		base.RightClick(evt);
 		int slot = HoveredSlot(evt.MousePosition);
 		if (slot >= 0) {
-			Main.LocalPlayer.GetModPlayer<SkillPlayer>().SetSlot(slot, null);
+			Assign(Main.LocalPlayer.GetModPlayer<SkillPlayer>(), slot, null);
 			SoundEngine.PlaySound(SoundID.MenuTick);
 		}
+	}
+
+	static void Assign(SkillPlayer sp, int slot, ModSkill skill)
+	{
+		if (slot == SkillPlayer.SlotCount)
+			sp.SetSecondary(skill);
+		else
+			sp.SetSlot(slot, skill);
 	}
 
 	protected override void DrawSelf(SpriteBatch sb)
 	{
 		base.DrawSelf(sb);
 		SkillPlayer sp = Main.LocalPlayer.GetModPlayer<SkillPlayer>();
+		FormPlayer fp = Main.LocalPlayer.GetModPlayer<FormPlayer>();
 		Vector2 o = Origin;
 		Vector2 mouse = Main.MouseScreen;
-		var font = FontAssets.MouseText.Value;
+		DynamicSpriteFont font = FontAssets.MouseText.Value;
 
 		Utils.DrawBorderString(sb, T("Title"), o + new Vector2(Pad, 14), SkillSlotDrawer.Gold, 1.1f);
 
@@ -253,138 +265,157 @@ public class SkillMenuPanel : UIPanel
 		Utils.DrawBorderString(sb, "X", new Vector2(close.X + 6, close.Y + 2), closeHover ? SkillSlotDrawer.Gold : Color.White, 1f);
 
 		// Skill grid.
-		List<ModSkill> skills = Skills;
-		int hoverCell = HoveredCell(mouse);
-		for (int i = 0; i < skills.Count; i++) {
+		IReadOnlyList<ModSkill> skills = Skills;
+		int hoverSkill = HoveredSkill(mouse);
+		for (int i = 0; i < skills.Count && i < Columns * SkillRows; i++) {
 			ModSkill skill = skills[i];
-			Vector2 pos = Offset(GridCell(i), o).TopLeft();
+			Vector2 pos = Offset(SkillCell(i), o).TopLeft();
 			bool known = sp.Knows(skill);
-			SkillSlotDrawer.DrawFrame(sb, pos, skill == Selected || i == hoverCell);
+			SkillSlotDrawer.DrawFrame(sb, pos, skill == Selected || i == hoverSkill);
 			SkillSlotDrawer.DrawIcon(sb, pos, skill, false, !known);
 			if (!known)
-				Utils.DrawBorderString(sb, "?", pos + new Vector2(19, 13), new Color(150, 160, 200), 1f);
+				Utils.DrawBorderString(sb, "?", pos + new Vector2(19, 13), Question, 1f);
 		}
 
-		// Forms row, with a mastery bar under each.
-		FormPlayer fp = Main.LocalPlayer.GetModPlayer<FormPlayer>();
+		// Form grid, with a mastery bar under each.
 		Utils.DrawBorderString(sb, T("Forms"), o + new Vector2(Pad, FormsLabelTop), Color.White, 0.9f);
-		List<ModForm> forms = Forms;
+		IReadOnlyList<ModForm> forms = Forms;
 		int hoverForm = HoveredForm(mouse);
-		for (int i = 0; i < forms.Count; i++) {
+		for (int i = 0; i < forms.Count && i < Columns * FormRows; i++) {
 			ModForm form = forms[i];
 			Vector2 pos = Offset(FormCell(i), o).TopLeft();
 			bool unlocked = fp.IsUnlocked(form);
-			SkillSlotDrawer.DrawFrame(sb, pos, form == SelectedForm || i == hoverForm || fp.Active == form);
+			SkillSlotDrawer.DrawFrame(sb, pos, form == SelectedForm || i == hoverForm || fp.Active == form || fp.Overlay == form);
 			SkillSlotDrawer.DrawFormIcon(sb, pos, form, !unlocked);
 			if (!unlocked)
-				Utils.DrawBorderString(sb, "?", pos + new Vector2(19, 13), new Color(150, 160, 200), 1f);
+				Utils.DrawBorderString(sb, "?", pos + new Vector2(19, 13), Question, 1f);
 			else
 				SkillSlotDrawer.DrawMastery(sb, pos, fp.Mastery(form), form.Aura.Hot);
 		}
 
 		// Details panel.
-		var detail = new Rectangle((int)o.X + DetailLeft, (int)o.Y + GridTop, W - DetailLeft - Pad, H - GridTop - Pad);
+		var detail = new Rectangle((int)o.X + DetailLeft, (int)o.Y + GridTop, DetailWidth, FormsTop + FormRows * Cell - GridTop);
 		Utils.DrawInvBG(sb, detail, new Color(18, 24, 52) * 0.9f);
-		ModSkill shown = hoverCell >= 0 ? skills[hoverCell] : hoverForm >= 0 ? null : Selected;
-		ModForm shownForm = hoverForm >= 0 ? forms[hoverForm] : hoverCell >= 0 ? null : SelectedForm;
+		ModSkill shown = hoverSkill >= 0 ? skills[hoverSkill] : hoverForm >= 0 ? null : Selected;
+		ModForm shownForm = hoverForm >= 0 ? forms[hoverForm] : hoverSkill >= 0 ? null : SelectedForm;
 		if (shown != null)
 			DrawDetails(sb, shown, sp, detail, font);
 		else if (shownForm != null)
 			DrawFormDetails(sb, shownForm, fp, detail, font);
 		else
-			DrawWrapped(sb, T("Help"), new Vector2(detail.X + 12, detail.Y + 12), detail.Width - 24, new Color(190, 200, 230), font);
+			DrawWrapped(sb, T("Help"), new Vector2(detail.X + 12, detail.Y + 12), detail.Width - 24, Hint, font);
 
-		// Loadout.
-		Utils.DrawBorderString(sb, T("Loadout"), o + new Vector2(Pad, H - Pad - SkillSlotDrawer.Size - 26), Color.White, 0.9f);
+		// Loadout: the bar, then the right-button slot.
+		Utils.DrawBorderString(sb, T("Loadout"), o + new Vector2(Pad, LoadoutLabelTop), Color.White, 0.9f);
 		int hoverSlot = HoveredSlot(mouse);
-		for (int i = 0; i < SkillPlayer.SlotCount; i++) {
+		bool placing = Selected != null && sp.Knows(Selected);
+		for (int i = 0; i <= SkillPlayer.SlotCount; i++) {
+			bool secondary = i == SkillPlayer.SlotCount;
 			Vector2 pos = Offset(LoadoutSlot(i), o).TopLeft();
-			bool target = Selected != null && sp.Knows(Selected) && i == hoverSlot;
-			SkillSlotDrawer.DrawFrame(sb, pos, target);
-			SkillSlotDrawer.DrawIcon(sb, pos, sp.SkillInSlot(i), false, false);
-			SkillSlotDrawer.DrawKey(sb, pos, SkillSlotDrawer.KeyLabel(i));
+			SkillSlotDrawer.DrawFrame(sb, pos, placing && i == hoverSlot);
+			SkillSlotDrawer.DrawIcon(sb, pos, secondary ? sp.SecondarySkill : sp.SkillInSlot(i), false, false);
+			SkillSlotDrawer.DrawKey(sb, pos, secondary ? Language.GetTextValue("Mods.Zenkai.UI.SkillBar.RightButton") : SkillSlotDrawer.KeyLabel(i));
 		}
 	}
 
-	void DrawDetails(SpriteBatch sb, ModSkill skill, SkillPlayer sp, Rectangle area, ReLogic.Graphics.DynamicSpriteFont font)
+	static void DrawDetails(SpriteBatch sb, ModSkill skill, SkillPlayer sp, Rectangle area, DynamicSpriteFont font)
 	{
-		bool known = sp.Knows(skill);
 		var pos = new Vector2(area.X + 12, area.Y + 10);
 		int width = area.Width - 24;
 
-		if (!known) {
-			Utils.DrawBorderString(sb, T("Unlearned"), pos, new Color(160, 165, 190), 1f);
+		if (!sp.Knows(skill)) {
+			Utils.DrawBorderString(sb, T("Unlearned"), pos, Muted, 1f);
 			pos.Y += 30;
-			DrawWrapped(sb, skill.LearnHint.Value, pos, width, new Color(190, 200, 230), font);
+			DrawWrapped(sb, skill.LearnHint.Value, pos, width, Hint, font);
 			return;
 		}
 
 		Utils.DrawBorderString(sb, skill.DisplayName.Value, pos, SkillSlotDrawer.Gold, 1.05f);
 		pos.Y += 26;
-		Utils.DrawBorderString(sb, T("Kind." + skill.Kind), pos, new Color(140, 210, 255), 0.85f);
+		Utils.DrawBorderString(sb, T("Kind." + skill.Kind), pos, new Color(140, 210, 255), TextScale);
 		pos.Y += 24;
 
-		string cost = skill.SustainDrain > 0f
+		void Line(string text)
+		{
+			Utils.DrawBorderString(sb, text, pos, Color.White, TextScale);
+			pos.Y += LineHeight;
+		}
+		Line(skill.SustainDrain > 0f
 			? T("CostSustain", (int)sp.CostOf(skill), (int)(skill.SustainDrain * sp.KiCostMultiplier))
-			: T("Cost", (int)sp.CostOf(skill));
-		Utils.DrawBorderString(sb, cost, pos, Color.White, 0.85f);
-		pos.Y += 20;
-		if (skill.BaseDamage > 0) {
-			Utils.DrawBorderString(sb, T("Damage", skill.DamageFor(sp.Player)), pos, Color.White, 0.85f);
-			pos.Y += 20;
-		}
-		if (skill.Cooldown > 0) {
-			Utils.DrawBorderString(sb, T("Cooldown", (skill.Cooldown / 60f).ToString("0.#")), pos, Color.White, 0.85f);
-			pos.Y += 20;
-		}
+			: T("Cost", (int)sp.CostOf(skill)));
+		if (skill.BaseDamage > 0)
+			Line(T("Damage", skill.DamageFor(sp.Player)));
+		if (skill.Cooldown > 0)
+			Line(T("Cooldown", (skill.Cooldown / 60f).ToString("0.#")));
 		pos.Y += 8;
-		DrawWrapped(sb, skill.Description.Value, pos, width, new Color(200, 210, 235), font);
+		DrawWrapped(sb, skill.Description.Value, pos, width, Body, font);
 	}
 
-	void DrawFormDetails(SpriteBatch sb, ModForm form, FormPlayer fp, Rectangle area, ReLogic.Graphics.DynamicSpriteFont font)
+	static void DrawFormDetails(SpriteBatch sb, ModForm form, FormPlayer fp, Rectangle area, DynamicSpriteFont font)
 	{
 		var pos = new Vector2(area.X + 12, area.Y + 10);
 		int width = area.Width - 24;
 		if (!fp.IsUnlocked(form)) {
-			Utils.DrawBorderString(sb, T("Locked"), pos, new Color(160, 165, 190), 1f);
+			Utils.DrawBorderString(sb, T("Locked"), pos, Muted, 1f);
 			pos.Y += 30;
-			DrawWrapped(sb, form.UnlockHint.Value, pos, width, new Color(190, 200, 230), font);
+			DrawWrapped(sb, form.UnlockHint.Value, pos, width, Hint, font);
 			return;
 		}
 
 		Utils.DrawBorderString(sb, form.DisplayName.Value, pos, form.Aura.Rim, 1.05f);
 		pos.Y += 26;
 		float m = fp.Mastery(form);
-		Utils.DrawBorderString(sb, T("FormTier", form.Tier, (int)(m * 100f)), pos, form.Aura.Hot, 0.85f);
+		Utils.DrawBorderString(sb, T("FormMastery", (int)(m * 100f)), pos, form.Aura.Hot, TextScale);
 		pos.Y += 24;
 
 		void Line(string text)
 		{
-			Utils.DrawBorderString(sb, text, pos, Color.White, 0.85f);
-			pos.Y += 20;
+			Utils.DrawBorderString(sb, text, pos, Color.White, TextScale);
+			pos.Y += LineHeight;
 		}
-		Line(T("FormDamage", (int)Math.Round(form.KiDamageBonus * 100f)));
+		Line(T("FormDamage", form.KiDamageMultiplier.ToString("0.#")));
 		if (form.SpeedBonus > 0f)
 			Line(T("FormSpeed", (int)Math.Round(form.SpeedBonus * 100f)));
 		if (form.DefenseBonus > 0)
 			Line(T("FormDefense", form.DefenseBonus));
+		if (form.DodgeChance > 0f)
+			Line(T("FormDodge", (int)Math.Round(form.DodgeChance * 100f)));
+		if (form.KiCritBonus > 0f)
+			Line(T("FormCrit", (int)Math.Round(form.KiCritBonus * 100f)));
+		if (form.EnduranceBonus > 0f)
+			Line(T("FormEndurance", (int)Math.Round(form.EnduranceBonus * 100f)));
+		if (form.MaxKiBonus > 0)
+			Line(T("FormMaxKi", form.MaxKiBonus));
+		if (form.KiRegenMultiplier != 1f)
+			Line(T("FormKiRegen", form.KiRegenMultiplier.ToString("0.#")));
+		if (form.KiCostMultiplier != 1f)
+			Line(T("FormKiCost", form.KiCostMultiplier.ToString("0.##")));
+		if (form.ChargeRateMultiplier != 1f)
+			Line(T("FormChargeRate", form.ChargeRateMultiplier.ToString("0.#")));
+		if (form.LifeRegenBonus > 0f)
+			Line(T("FormLifeRegen", form.LifeRegenBonus.ToString("0.#")));
+		if (form.SurgeBonus > 0f)
+			Line(T("FormSurge", (int)Math.Round(form.SurgeBonus * 100f)));
+		if (form.LightningInterval > 0)
+			Line(T("FormLightning"));
+		if (form.DodgeCounter)
+			Line(T("FormCounter"));
 		if (form.KiDrainAtZero > 0f)
 			Line(T("FormKiDrain", form.KiDrain(m).ToString("0.#"), form.KiDrainAtFull.ToString("0.#")));
 		if (form.LifeDrainAtZero > 0f)
 			Line(T("FormLifeDrain", form.LifeDrain(m).ToString("0.#"), form.LifeDrainAtFull.ToString("0.#")));
 		pos.Y += 8;
-		DrawWrapped(sb, form.Description.Value, pos, width, new Color(200, 210, 235), font);
+		DrawWrapped(sb, form.Description.Value, pos, width, Body, font);
 	}
 
-	static void DrawWrapped(SpriteBatch sb, string text, Vector2 pos, int width, Color color, ReLogic.Graphics.DynamicSpriteFont font)
+	static void DrawWrapped(SpriteBatch sb, string text, Vector2 pos, int width, Color color, DynamicSpriteFont font)
 	{
-		const float scale = 0.85f;
-		string[] lines = Utils.WordwrapString(text, font, (int)(width / scale), 12, out int count);
+		string[] lines = Utils.WordwrapString(text, font, (int)(width / TextScale), 12, out int count);
 		for (int i = 0; i <= count && i < lines.Length; i++) {
 			if (string.IsNullOrEmpty(lines[i]))
 				continue;
-			Utils.DrawBorderString(sb, lines[i], pos.Floor(), color, scale);
-			pos.Y += 20;
+			Utils.DrawBorderString(sb, lines[i], pos.Floor(), color, TextScale);
+			pos.Y += LineHeight;
 		}
 	}
 }

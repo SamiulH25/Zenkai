@@ -1,4 +1,4 @@
--- Builds the phase 3 transformation art: form icons, Super Saiyan hair, the transformation burst,
+-- Builds the phase 3 transformation art: form icons, the transformation burst,
 -- the tintable spark dust and the exhaustion debuff icon.
 -- Run: aseprite -b --script-param root=<repo> --script art/forms.lua   (tools/art.sh does this)
 
@@ -56,31 +56,6 @@ lib.single("KiExhaustion", "Buffs", 16, 16, function(c)
 end)
 
 ---------------------------------------------------------------------------
--- Super Saiyan hair: 20x34. Rows 6.. line up with a vanilla 20x28 player frame (FormHairLayer
--- draws it 6 art rows higher), facing right. The face area is kept clear except for bangs.
----------------------------------------------------------------------------
-lib.single("SuperSaiyanHair", "Forms", 20, 34, function(c)
-  local hair = union(
-    disc(10.5, 12.5, 4.6),
-    cone(10, 12, 3.2, 9.5, 0.5, 0.6),
-    cone(8, 12, 3.0, 2.5, 2.5, 0.6),
-    cone(7, 14, 2.6, 0.5, 9.5, 0.5),
-    cone(7, 16, 2.0, 1.5, 20, 0.5),
-    cone(12.5, 12, 2.6, 16.5, 3.5, 0.5),
-    cone(14, 13, 1.8, 19, 9, 0.4)
-  )
-  local face = function(x, y) return x >= 9 and y >= 13.5 end
-  local bands = { { 1, GOLD.d }, { 2, GOLD.m }, { 3.2, GOLD.h }, { 99, GOLD.r } }
-  c:shape(function(x, y)
-    if face(x, y) then return -1 end
-    return hair(x, y)
-  end, bands)
-  -- Bangs over the forehead.
-  c:shape(union(cone(11, 11.5, 1.4, 11.5, 14.6, 0.4), cone(13.5, 12, 1.2, 14.5, 14.2, 0.3)), bands)
-  c:outline(GOLD.o)
-end)
-
----------------------------------------------------------------------------
 -- Transformation burst: 48x48, 4 frames, grey (tinted by the form's colour in code).
 ---------------------------------------------------------------------------
 lib.sheet("FormBurst", "Projectiles", 48, 48, 4, function(i, c)
@@ -116,4 +91,4 @@ do
   sprite:close()
 end
 
-print("wrote form icons, hair, burst, spark and debuff icon")
+print("wrote form icons, burst, spark and debuff icon")

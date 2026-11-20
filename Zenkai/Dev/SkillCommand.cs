@@ -13,7 +13,8 @@ namespace Zenkai.Dev;
 ///   /zskill list                 every skill, learned ones marked
 ///   /zskill grant &lt;name|all&gt;     learn a skill (also fills an empty slot)
 ///   /zskill revoke &lt;name|all&gt;    forget a skill
-///   /zskill slot &lt;1-4&gt; &lt;name|none&gt; put a learned skill in a slot
+///   /zskill slot &lt;1-8&gt; &lt;name|none&gt; put a learned skill in a bar slot
+///   /zskill secondary &lt;name|none&gt; put a learned skill on the right mouse button
 ///   /zskill ki &lt;amount&gt;          set current ki
 ///   /zskill dummy                place a target dummy a few tiles in front of you
 /// Phase 10 gates this behind a config option.
@@ -22,7 +23,7 @@ public class SkillCommand : ModCommand
 {
 	public override CommandType Type => CommandType.Chat;
 	public override string Command => "zskill";
-	public override string Usage => "/zskill list | grant <name|all> | revoke <name|all> | slot <1-4> <name|none> | ki <amount> | dummy";
+	public override string Usage => "/zskill list | grant <name|all> | revoke <name|all> | slot <1-8> <name|none> | secondary <name|none> | ki <amount> | dummy";
 	public override string Description => "Zenkai dev tools for skills";
 
 	public override void Action(CommandCaller caller, string input, string[] args)
@@ -38,7 +39,8 @@ public class SkillCommand : ModCommand
 			case "list":
 				foreach (ModSkill s in SkillLoader.Ordered)
 					caller.Reply($"{(sp.Knows(s) ? "[x]" : "[ ]")} {s.Name} ({s.Kind}, {s.KiCost} ki)");
-				caller.Reply("Slots: " + string.Join(", ", sp.Loadout.Select((n, i) => $"{i + 1}={sp.SkillInSlot(i)?.Name ?? "-"}")));
+				caller.Reply("Slots: " + string.Join(", ", sp.Loadout.Select((n, i) => $"{i + 1}={sp.SkillInSlot(i)?.Name ?? "-"}"))
+					+ $", RMB={sp.SecondarySkill?.Name ?? "-"}");
 				break;
 
 			case "grant":
@@ -70,6 +72,23 @@ public class SkillCommand : ModCommand
 					sp.SetSlot(slot - 1, s);
 				}
 				caller.Reply($"Slot {slot} = {sp.SkillInSlot(slot - 1)?.Name ?? "-"}");
+				break;
+
+			case "secondary":
+				if (args.Length < 2)
+					throw new UsageException();
+				if (args[1].ToLowerInvariant() == "none") {
+					sp.SetSecondary(null);
+				}
+				else {
+					ModSkill s = Match(args[1]).FirstOrDefault();
+					if (s == null || !sp.Knows(s)) {
+						caller.Reply("Unknown or unlearned skill", Color.Red);
+						return;
+					}
+					sp.SetSecondary(s);
+				}
+				caller.Reply($"Right button = {sp.SecondarySkill?.Name ?? "-"}");
 				break;
 
 			case "ki":

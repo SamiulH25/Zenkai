@@ -1,106 +1,82 @@
-using Microsoft.Xna.Framework;
 using Terraria;
-using Terraria.Audio;
-using Terraria.ID;
-using Terraria.ModLoader;
 using Zenkai.Common.Players;
 using Zenkai.Common.Skills;
-using Zenkai.Content.Projectiles;
 
 namespace Zenkai.Content.Skills;
 
-/// <summary>
-/// The signature beam. Hold to charge (slowed, can aim), release to fire; hold to keep it going
-/// while ki lasts, rooted and turning slowly. One <see cref="BeamProjectile"/> owns the orb and the beam.
-/// </summary>
-public class ChargedBeam : ModSkill
+/// <summary>The signature beam: a thick blue wave. Learned after the first boss.</summary>
+public class ChargedBeam : BeamSkill
 {
-	const int SustainMin = 60;   // ticks at no charge
-	const int SustainBonus = 90; // extra ticks at full charge
-	const float MaxChargeDamageBonus = 1f; // full charge doubles damage
-
 	public override void SetStaticDefaults()
 	{
-		Kind = SkillKind.Beam;
+		BeamDefaults();
 		Tier = 1;
 		KiCost = 20f;
 		SustainDrain = 15f;
 		MinCharge = 30;
 		MaxCharge = 150;
-		Cooldown = 60;
-		Recovery = 14;
 		BaseDamage = 14;
 		Knockback = 1f;
-		// Fires for a time set by the charge, while ki lasts; pressing the key again ends it early.
-		HoldToSustain = false;
-		ChargeMoveSpeed = 0.4f;
-		RootWhileSustaining = true;
-		SustainTurnRate = 0.035f;
 	}
 
-	public override int SustainTicks(SkillPlayer sp, float charge) => SustainMin + (int)(SustainBonus * charge);
+	public override bool LearnCondition(SkillPlayer sp) => NPC.downedBoss1 || NPC.downedSlimeKing || NPC.downedBoss2;
+}
 
-	static Projectile Beam(SkillPlayer sp)
+/// <summary>A thin drilling beam: long charge, short burst, ignores armour and goes through walls.</summary>
+public class PiercingBeam : BeamSkill
+{
+	public override void SetStaticDefaults()
 	{
-		if (sp.ActiveProjectile < 0)
-			return null;
-		Projectile p = Main.projectile[sp.ActiveProjectile];
-		return p.active && p.ModProjectile is BeamProjectile ? p : null;
+		BeamDefaults();
+		Tier = 3;
+		KiCost = 50f;
+		SustainDrain = 10f;
+		MinCharge = 60;
+		MaxCharge = 120;
+		Cooldown = 150;
+		BaseDamage = 55;
+		Knockback = 0.5f;
+		ArmorPenetration = 40;
+		SustainMin = 24;
+		SustainBonus = 24;
+		MaxChargeDamageBonus = 1.5f;
+		AssetPrefix = "PiercingBeam";
+		HitWidth = 10f;
+		HitCooldown = 8;
+		PiercesTiles = true;
+		MaxLength = 1300f;
+		LightColor = new(190, 110, 255);
+		SustainTurnRate = 0.012f;
 	}
 
-	public override void OnStart(SkillPlayer sp)
+	public override bool LearnCondition(SkillPlayer sp) => NPC.downedPlantBoss;
+}
+
+/// <summary>The widest beam, thrown with both arms: slow to charge, enormous once it goes.</summary>
+public class FinalBeam : BeamSkill
+{
+	public override void SetStaticDefaults()
 	{
-		Projectile beam = Spawn(sp, KiBlast.HandPosition(sp), sp.Aim, ModContent.ProjectileType<BeamProjectile>());
-		sp.ActiveProjectile = beam?.whoAmI ?? -1;
-		SoundEngine.PlaySound(SoundID.Item15 with { Pitch = -0.6f, Volume = 0.6f }, sp.Player.Center);
+		BeamDefaults();
+		Tier = 4;
+		KiCost = 60f;
+		SustainDrain = 30f;
+		MinCharge = 45;
+		MaxCharge = 180;
+		Cooldown = 240;
+		BaseDamage = 48;
+		Knockback = 3f;
+		SustainMin = 80;
+		SustainBonus = 100;
+		AssetPrefix = "FinalBeam";
+		HitWidth = 36f;
+		HitCooldown = 8;
+		LightColor = new(255, 220, 90);
+		FireShake = 7f;
+		FireShakeBonus = 6f;
+		SustainTurnRate = 0.02f;
+		ChargeMoveSpeed = 0.2f;
 	}
 
-	public override void OnChargeTick(SkillPlayer sp)
-	{
-		if (Beam(sp) is Projectile beam)
-			beam.ai[1] = sp.ChargeFraction;
-		// A hum that rises as the charge builds, and a ping when it is full.
-		if (sp.StateTicks % 24 == 0 && sp.ChargeTicks < MaxCharge)
-			SoundEngine.PlaySound(SoundID.Item15 with { Pitch = -0.6f + sp.ChargeFraction * 1.1f, Volume = 0.55f }, sp.Player.Center);
-		if (sp.ChargeTicks == MaxCharge && sp.StateTicks == MaxCharge)
-			SoundEngine.PlaySound(SoundID.MaxMana, sp.Player.Center);
-	}
-
-	public override void OnRelease(SkillPlayer sp, float charge)
-	{
-		if (Beam(sp) is Projectile beam) {
-			beam.ai[0] = BeamProjectile.StateFiring;
-			beam.ai[1] = charge;
-			beam.damage = DamageFor(sp.Player, 1f + MaxChargeDamageBonus * charge);
-			beam.knockBack = KnockbackFor(sp.Player);
-		}
-		SoundEngine.PlaySound(SoundID.Item12 with { Pitch = -0.7f, Volume = 1f }, sp.Player.Center);
-		SoundEngine.PlaySound(SoundID.Item74 with { Pitch = -0.3f, Volume = 0.5f }, sp.Player.Center);
-		sp.Shake(4f + 4f * charge, 18);
-	}
-
-	public override bool OnSustainTick(SkillPlayer sp)
-	{
-		if (Beam(sp) == null)
-			return false;
-		if (sp.StateTicks % 18 == 0)
-			SoundEngine.PlaySound(SoundID.Item15 with { Pitch = -0.2f, Volume = 0.45f }, sp.Player.Center);
-		if (sp.StateTicks % 12 == 0)
-			sp.Shake(1.5f, 10);
-		return true;
-	}
-
-	public override void OnEnd(SkillPlayer sp, bool cancelled)
-	{
-		if (Beam(sp) is Projectile beam)
-			beam.ai[0] = BeamProjectile.StateFading;
-	}
-
-	public override void PoseArms(SkillPlayer sp)
-	{
-		// Both hands forward, cupped together.
-		float rotation = sp.Aim.ToRotation() - MathHelper.PiOver2;
-		sp.Player.SetCompositeArmFront(true, Player.CompositeArmStretchAmount.Full, rotation);
-		sp.Player.SetCompositeArmBack(true, Player.CompositeArmStretchAmount.Full, rotation);
-	}
+	public override bool LearnCondition(SkillPlayer sp) => NPC.downedGolemBoss;
 }

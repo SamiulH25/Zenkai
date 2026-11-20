@@ -60,23 +60,26 @@ public abstract class EffectProjectile : ModProjectile
 	}
 }
 
-/// <summary>The ring that bursts out when a transformation completes. ai[1] is the form's type, for its colour.</summary>
+/// <summary>A grey ring that bursts outward, tinted in code: a transformation completing, a Solar Flash.
+/// ai[1] is the tint, packed by <see cref="Pack"/>.</summary>
 public class FormBurst : EffectProjectile
 {
 	protected override int FrameCount => 4;
 	protected override int TicksPerFrame => 4;
 
-	Common.Forms.ModForm Form
+	/// <summary>Packs an opaque colour into a float an ai slot can carry exactly (24 bits).</summary>
+	public static float Pack(Color color) => (color.R << 16) | (color.G << 8) | color.B;
+
+	Color Tint
 	{
 		get {
-			int type = (int)Projectile.ai[1];
-			var forms = Common.Forms.FormLoader.Forms;
-			return type >= 0 && type < forms.Count ? forms[type] : null;
+			int packed = (int)Projectile.ai[1];
+			return packed <= 0 ? Color.White : new Color((packed >> 16) & 255, (packed >> 8) & 255, packed & 255);
 		}
 	}
 
-	protected override Color DrawColor => Form?.Aura.Hot ?? Color.White;
-	protected override Color Light => Form?.Aura.Hot ?? Color.White;
+	protected override Color DrawColor => Tint;
+	protected override Color Light => Tint;
 }
 
 /// <summary>Muzzle flash at the hand when a blast is fired.</summary>

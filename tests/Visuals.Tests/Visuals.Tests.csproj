@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AuraSource Condition="'$(AuraSource)' == ''">../../Zenkai/Common/Visuals/AuraRenderer.cs</AuraSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(AuraSource)" Link="AuraRenderer.cs" />
+    <Compile Include="../../Zenkai/Common/Visuals/AuraStyle.cs" Link="AuraStyle.cs" />
+  </ItemGroup>
+</Project>

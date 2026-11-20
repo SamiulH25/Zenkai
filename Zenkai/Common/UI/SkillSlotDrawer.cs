@@ -36,14 +36,8 @@ public static class SkillSlotDrawer
 
 	internal static void Unload() => frame = frameActive = null;
 
-	public static string KeyLabel(int slot)
-	{
-		var keys = ZenkaiKeybinds.SkillSlots[slot].GetAssignedKeys(InputMode.Keyboard);
-		if (keys.Count == 0)
-			return "-";
-		string key = keys[0];
-		return key.StartsWith("D") && key.Length == 2 ? key.Substring(1) : key; // D1 -> 1
-	}
+	/// <summary>The hotbar key that picks a bar slot in the ki stance: 1 to 8.</summary>
+	public static string KeyLabel(int slot) => (slot + 1).ToString();
 
 	public static void DrawFrame(SpriteBatch sb, Vector2 pos, bool active) =>
 		sb.Draw((active ? frameActive : frame).Value, pos, Color.White);

@@ -42,9 +42,10 @@ public class KiAuraLayer : PlayerDrawLayer
 		Player player = drawInfo.drawPlayer;
 		KiPlayer ki = player.GetModPlayer<KiPlayer>();
 
-		bool headFirst = ki.Flying && ki.FlyingHeadFirst && !ki.Charging;
+		FlightPlayer flight = player.GetModPlayer<FlightPlayer>();
+		bool headFirst = flight.Flying && flight.FlyingHeadFirst && !ki.Charging;
 		float intensity = ki.Charging ? ChargeIntensity
-			: ki.Flying && player.velocity.LengthSquared() > 1f ? FlightIntensity
+			: flight.Flying && player.velocity.LengthSquared() > 1f ? FlightIntensity
 			: HoverIntensity;
 		var state = new AuraState(intensity, headFirst, player.velocity.Length());
 
@@ -56,7 +57,7 @@ public class KiAuraLayer : PlayerDrawLayer
 		// (adding it here as well doubled the tilt). Plain alpha blending: the navy edge band
 		// darkens what is behind it.
 		Color color = Color.White * ki.AuraOpacity;
-		Vector2 centre = (player.Center - Main.screenPosition).Floor();
+		Vector2 centre = (drawInfo.Position + player.Size / 2f - Main.screenPosition).Floor();
 		var origin = new Vector2(renderer.Texture.Width / 2, renderer.Texture.Height / 2);
 		drawInfo.DrawDataCache.Add(new DrawData(renderer.Texture, centre, null, color, 0f, origin, 1f, SpriteEffects.None, 0));
 	}

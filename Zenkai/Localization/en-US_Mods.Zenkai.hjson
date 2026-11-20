@@ -1,14 +1,10 @@
 Keybinds: {
 	ChargeKi.DisplayName: Charge Ki
 	ToggleFlight.DisplayName: Toggle Flight
-	SkillSlot1.DisplayName: Skill Slot 1
-	SkillSlot2.DisplayName: Skill Slot 2
-	SkillSlot3.DisplayName: Skill Slot 3
-	SkillSlot4.DisplayName: Skill Slot 4
+	KiStance.DisplayName: Ki Stance
 	SkillMenu.DisplayName: Skill Menu
-	Transform.DisplayName: Transform
-	Revert.DisplayName: Revert Form
-	Unbound: Zenkai: {0} controls are not bound yet. Bind them in Settings, Controls, under Zenkai (suggested: C charge, F flight, Z X V G skills, K skill menu, T transform, Y revert).
+	Transform.DisplayName: Transform (hold for the form wheel)
+	Unbound: Zenkai: {0} controls are not bound yet. Bind them in Settings, Controls, under Zenkai (suggested: C charge, F flight, V ki stance, K skill menu, T transform).
 }
 
 DamageClasses.KiDamageClass.DisplayName: ki damage
@@ -16,14 +12,8 @@ DamageClasses.KiDamageClass.DisplayName: ki damage
 Skills: {
 	KiBlast: {
 		DisplayName: Ki Blast
-		Description: A quick bolt of ki thrown from the hand toward the cursor. Hold the key to keep firing.
+		Description: A quick bolt of ki thrown from the hand toward the cursor. Hold the button to keep firing.
 		LearnHint: Known from the start.
-	}
-
-	ChargedBeam: {
-		DisplayName: Charged Beam
-		Description: Hold to gather ki at your hands, release to unleash a beam that pierces everything in its path. It drains ki while it fires; press again to stop early. A longer charge hits harder and lasts longer. You cannot move while it fires.
-		LearnHint: Taught by a martial arts master once you have proven yourself against a powerful foe.
 	}
 
 	Rush: {
@@ -34,16 +24,104 @@ Skills: {
 
 	Vanish: {
 		DisplayName: Vanish
-		Description: Blink a short distance in the direction you are holding, untouchable for a moment. Cannot pass through walls.
-		LearnHint: Taught by a martial arts master.
+		Description: Blink a short distance, untouchable for a moment. In the ki stance, double-tap a direction to use it without picking it. Cannot pass through walls.
+		LearnHint: Known from the start.
+	}
+
+	ChargedBeam: {
+		DisplayName: Charged Beam
+		Description: Hold to gather ki at your hands, release to unleash a beam that pierces everything in its path. It drains ki while it fires; press again to stop early. A longer charge hits harder and lasts longer. You cannot move while it fires.
+		LearnHint: Comes to you once you have beaten your first powerful foe.
+	}
+
+	HeavyStrike: {
+		DisplayName: Heavy Strike
+		Description: Hold to wind up, release to drive forward with a single crushing blow. A full charge triples the damage and sends the target flying.
+		LearnHint: Comes to you once you have beaten your first powerful foe.
+	}
+
+	HomingBlast: {
+		DisplayName: Homing Blast
+		Description: A heavier bolt that bends toward the nearest enemy it can see. Hold the button to keep firing.
+		LearnHint: Learned after destroying the horror that festers in the world's evil.
+	}
+
+	SolarFlash: {
+		DisplayName: Solar Flash
+		Description: A blinding burst of light. Enemies around you lose their bearings for a few seconds. Deals no damage and does nothing to bosses.
+		LearnHint: Learned deep underground, from the queen of the hive or the guardian of the dungeon.
+	}
+
+	KiBarrier: {
+		DisplayName: Ki Barrier
+		Description: Hold to wrap yourself in a shell of ki. While it holds you take far less damage and cannot be knocked back. It drains ki every second.
+		LearnHint: Learned after the guardian of the dungeon falls.
+	}
+
+	Barrage: {
+		DisplayName: Barrage
+		Description: Hold to pour out a stream of small bolts from both hands. Loose aim, low damage each, relentless.
+		LearnHint: Learned once the world's ancient spirits are loose.
+	}
+
+	EnergyDisc: {
+		DisplayName: Energy Disc
+		Description: A razor disc of ki that cuts through every enemy in its path and curves toward the next. Breaks on walls.
+		LearnHint: Learned once the world's ancient spirits are loose.
+	}
+
+	ExplosiveWave: {
+		DisplayName: Explosive Wave
+		Description: Hold to gather ki, release to blow it outward in every direction. Everything close by is hit once and hurled away. A full charge doubles the damage.
+		LearnHint: Learned after the first of the mechanical tyrants is destroyed.
+	}
+
+	InstantMovement: {
+		DisplayName: Instant Movement
+		Description: Step straight to the cursor from far away, through anything in between, untouchable for a moment on arrival.
+		LearnHint: Learned after all three mechanical tyrants are destroyed.
+	}
+
+	PiercingBeam: {
+		DisplayName: Piercing Beam
+		Description: A thin drilling beam. Slow to charge and short-lived, but it ignores most armour and passes straight through walls.
+		LearnHint: Learned after the jungle's great flower is cut down.
+	}
+
+	FinalBeam: {
+		DisplayName: Final Beam
+		Description: Everything you have, thrown with both arms. The widest and strongest beam, slow to charge and very hungry for ki.
+		LearnHint: Learned after the idol in the jungle temple is broken.
+	}
+
+	SpiritBomb: {
+		DisplayName: Spirit Bomb
+		Description: Hold to gather a great sphere of ki overhead, release to bring it down on the cursor. It takes all the ki you have and hits harder the more it took and the longer it grew. You cannot move while gathering, and a hit breaks it.
+		LearnHint: Learned after the cultist at the dungeon's door is defeated.
 	}
 }
 
 UI: {
+	Learned: You have learned {0}. Open the skill menu to place it.
+
+	SkillBar: {
+		Empty: No skill in this slot
+		RightButton: RMB
+	}
+
+	FormWheel: {
+		Base: Base
+		Hint: Point at a form and let go
+		PowerDown: Let go to power down
+		Line: Ki damage x{0}. {1}. Mastery {2}%
+		KiDrain: Drains {0} ki/s
+		LifeDrain: Drains {0} life/s
+	}
+
 	SkillMenu: {
 		Title: Skills
 		Loadout: Loadout
-		Help: Click a skill, then a slot below to assign it. Right-click a slot to clear it.
+		Help: Click a skill, then a slot below to assign it. The eight numbered slots are the skill bar; RMB is the skill on the right mouse button. Right-click a slot to clear it. Skills are used in the ki stance.
 		Unlearned: Not learned yet
 		Cost: Cost: {0} ki
 		CostSustain: Cost: {0} ki, then {1} ki/s
@@ -51,10 +129,21 @@ UI: {
 		Cooldown: Cooldown: {0}s
 		Forms: Forms
 		Locked: Not unlocked yet
-		FormTier: Form, tier {0}. Mastery {1}%
-		FormDamage: Ki damage +{0}%
+		FormMastery: Mastery {0}%
+		FormDamage: Ki damage x{0}
 		FormSpeed: Speed +{0}%
 		FormDefense: Defense +{0}
+		FormDodge: "{0}% chance to slip a hit"
+		FormCrit: Ki crit +{0}%
+		FormEndurance: Damage taken -{0}%
+		FormMaxKi: Max ki +{0}
+		FormKiRegen: Ki regen x{0}
+		FormKiCost: Skill cost x{0}
+		FormChargeRate: Charge speed x{0}
+		FormLifeRegen: Recovers {0} life/s
+		FormSurge: Up to +{0}% ki damage as life falls
+		FormLightning: Lightning strikes nearby foes in combat
+		FormCounter: Slipped hits answer with a ki bolt
 		FormKiDrain: Drains {0} ki/s ({1} at full mastery)
 		FormLifeDrain: Drains {0} life/s ({1} at full mastery)
 
@@ -63,7 +152,9 @@ UI: {
 			Beam: Beam
 			Melee: Melee
 			Movement: Movement
+			Burst: Burst
 			Utility: Utility
+			Ultimate: Ultimate
 		}
 	}
 }
@@ -71,16 +162,79 @@ UI: {
 Forms: {
 	Kaioken: {
 		DisplayName: Kaioken
-		Description: Push your body past its limits. Hits harder and moves faster, but burns your own life instead of ki, and gives out on its own when your life runs low. Mastery lowers the strain.
-		UnlockHint: Taught by a martial arts master.
-		UnlockMessage: You have learned to push past your limits. Press Transform to use Kaioken.
+		Description: Push your body past its limits. Hits harder and moves faster, but burns your own life instead of ki, and gives out on its own when your life runs low. Power surges as your life falls, and ki charges faster. Mastery lowers the strain.
+		UnlockHint: Comes to you once you have beaten your first powerful foe.
+		UnlockMessage: You have learned to push past your limits. Hold Transform to choose Kaioken.
+	}
+
+	KaiokenX3: {
+		DisplayName: Kaioken x3
+		Description: Three times the strain. More power and speed than Kaioken, and twice the toll on your life.
+		UnlockHint: Train Kaioken to half mastery and defeat the guardian of the dungeon.
+		UnlockMessage: Your body can bear more now. Kaioken x3 is yours.
+	}
+
+	KaiokenX10: {
+		DisplayName: Kaioken x10
+		Description: A reckless surge of power. The life it burns will kill you if the fight drags on.
+		UnlockHint: Train Kaioken x3 to half mastery in a world whose ancient spirits are loose.
+		UnlockMessage: The strain no longer frightens you. Kaioken x10 is yours.
+	}
+
+	KaiokenX20: {
+		DisplayName: Kaioken x20
+		Description: The edge of what a body can survive. Tremendous power for as long as your life holds out.
+		UnlockHint: Train Kaioken x10 to half mastery and cut down the jungle's great flower.
+		UnlockMessage: Every limit you had is behind you. Kaioken x20 is yours.
 	}
 
 	SuperSaiyan: {
 		DisplayName: Super Saiyan
-		Description: A golden awakening born of desperation. Greatly raises ki damage, speed and defense, but drains ki quickly until mastered. Run dry and you collapse out of it, exhausted.
+		Description: A golden awakening born of desperation. Your hair turns gold and stands on end. Greatly raises ki damage, speed and defense, but drains ki quickly until mastered. Run dry and you collapse out of it, exhausted.
 		UnlockHint: Some power only answers when everything is on the line. Face death against a mighty foe, once the world has turned dangerous.
 		UnlockMessage: Something inside you snaps. Your power erupts in gold!
+	}
+
+	SuperSaiyan2: {
+		DisplayName: Super Saiyan 2
+		Description: The golden form pushed further. Sharper, faster and stronger, with a wilder aura and a deeper thirst for ki. Lightning arcs from the aura to strike nearby foes.
+		UnlockHint: Train Super Saiyan to three-quarters mastery and destroy one of the mechanical tyrants.
+		UnlockMessage: The gold burns hotter. You have ascended to Super Saiyan 2.
+	}
+
+	SuperSaiyan3: {
+		DisplayName: Super Saiyan 3
+		Description: Raw power with no thought for the cost. Devastating, and it devours ki faster than you can gather it. The raw power shrugs off punishment.
+		UnlockHint: Train Super Saiyan 2 to three-quarters mastery and cut down the jungle's great flower.
+		UnlockMessage: Power pours out of you without end. You have reached Super Saiyan 3.
+	}
+
+	PotentialUnleashed: {
+		DisplayName: Potential Unleashed
+		Description: Every drop of dormant power, drawn out and held without strain. Nothing about you changes but a calm white aura. Strong, and far cheaper to hold than the golden forms. The calm mends your wounds and deepens your ki.
+		UnlockHint: Break the idol in the jungle temple.
+		UnlockMessage: Power you never knew you had rises quietly to the surface.
+	}
+
+	SuperSaiyanGod: {
+		DisplayName: Super Saiyan God
+		Description: Godly ki. Your hair turns crimson and the aura becomes a tall, slow flame. Twice the ki damage for a modest drain. Godly ki recovers twice as fast, and the pool runs deeper.
+		UnlockHint: Train Super Saiyan 3 to half mastery and defeat the cultist at the dungeon's door.
+		UnlockMessage: Your ki falls silent, and something far greater takes its place.
+	}
+
+	SuperSaiyanBlue: {
+		DisplayName: Super Saiyan Blue
+		Description: Godly ki held inside a Super Saiyan under perfect control. Blue hair, a dense blue aura, and the greatest steady power there is. Perfect control makes skills cost less ki.
+		UnlockHint: Train Super Saiyan God to three-quarters mastery and defeat the lord of the moon.
+		UnlockMessage: God and Saiyan become one. Your aura turns a deep, steady blue.
+	}
+
+	UltraInstinct: {
+		DisplayName: Ultra Instinct
+		Description: The body moves before the mind decides. Silver creeps into your hair and eyes, you move faster than in any other form, and one hit in three simply misses. A slipped hit is answered with a ki bolt of its own. Nothing burns ki as fast.
+		UnlockHint: Beyond the lord of the moon, face death against a mighty foe once more.
+		UnlockMessage: Your thoughts fall away. Your body already knows what to do.
 	}
 }
 
@@ -92,12 +246,18 @@ Buffs: {
 }
 
 Projectiles: {
-	FormBurst.DisplayName: Transformation Burst
+	FormBurst.DisplayName: Burst
 	KiBlastProjectile.DisplayName: Ki Blast
-	BeamProjectile.DisplayName: Charged Beam
-	RushStrike.DisplayName: Rush
+	BarrageBolt.DisplayName: Barrage
+	HomingBolt.DisplayName: Homing Blast
+	EnergyDiscProjectile.DisplayName: Energy Disc
+	BeamProjectile.DisplayName: Beam
+	RushStrike.DisplayName: Strike
 	KiFlash.DisplayName: Ki Flash
 	KiBurst.DisplayName: Ki Burst
 	StrikeSpark.DisplayName: Strike Spark
 	VanishAfterimage.DisplayName: Afterimage
+	KiWave.DisplayName: Ki Wave
+	SpiritBombProjectile.DisplayName: Spirit Bomb
+	KiBarrierBubble.DisplayName: Ki Barrier
 }

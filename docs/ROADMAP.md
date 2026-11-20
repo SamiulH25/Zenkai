@@ -36,6 +36,26 @@ Done and verified by running:
   phase; it was self-checked from 4x crops (hair alignment both facings, aura colours,
   menu Forms row). As-built notes are under each 3.x milestone. Not done: the 3.5
   vertical slice play-test.
+- A form buffs pass (2026-11-14, user request "make forms more useful, more interactive"):
+  every form gained buffs beyond damage/speed/defence and a signature perk. See "Form buffs
+  and abilities" under phase 3.
+
+Persistent hand-test saves are installed: **Zenkai Tester** / **Zenkai Training Ground**
+in the regular local save folders, with all skills/forms, 5,000 ki and a three-dummy
+spawn arena. `tools/test-save.sh` creates and verifies them in an isolated sandbox
+before a no-overwrite installation; repeat-install protection was tested. Normal
+Save & Exit keeps later changes. See `PLAN.md`, "Persistent hand-test saves".
+
+Aura/flight follow-up: adaptive padded aura bounds replace the clipped fixed canvas;
+flight now has speed-blended hover/glide arm, leg and body motion. The CPU regression
+passes 3,600 aura frames and catches the old renderer's clipping; the real-game shot
+suite completes 61 scenes. Still-frame review: aura 8/10, flight 7/10 (gate passed).
+Real-time pacing, item/skill overrides and landing feel need a hand play-test;
+see `PLAN.md`, "Aura edges and flight animation".
+
+Launch-crash investigation: the earlier tree built and completed all 49 headless scenes.
+The reported normal-launch failure is not reproduced; obtain its failing log and
+reproduction steps before applying a fix (details in `PLAN.md`).
 
 Not done:
 - Nothing has been played by hand. Input feel, keybinds and save/load are untested
@@ -158,8 +178,9 @@ Rules of thumb:
 - Skill damage comes from the skill's base value times the player's ki damage
   multiplier (armour, accessories, form). Skills are tiered, so an early skill does
   not scale forever; later tiers are separate skills or ranks.
-- Forms multiply. Terraria's multiplicative bonuses stack fast, so keep form damage
-  bonuses modest and let availability, drain and mastery carry the fantasy.
+- Forms multiply ki damage hard (user decision 2026-11-14: "think about how much Super Saiyan
+  boosts a base Saiyan"). The ladder runs x2 Kaioken to x50 Blue; drain, availability and
+  mastery carry the balance, not modest numbers.
 - Max ki: 100 at start, about 300 before Hardmode, about 600 before Moon Lord, about
   1000 at the end.
 - A ki player wears ki armour for damage. Vanilla accessories keep working.
@@ -445,6 +466,10 @@ The first true form, at early Hardmode.
 - Gold aura, gold upright hair, teal eyes.
 
 #### Phase 3 as built (2026-11-14)
+> Superseded in part by the overhaul in `docs/PLAN.md`: forms live in `Content/Forms/*Forms.cs`, hair
+> recolours the vanilla hair (no `SuperSaiyanHair` sprite) and the Transform key opens a form wheel.
+> The notes below describe the first build.
+
 - Code: `Common/Forms/ModForm.cs` and `FormLoader.cs` (registry like skills),
   `Common/Players/FormPlayer.cs` (states Normal, Transforming, Active; no separate
   Reverting state, revert is instant), `Common/Players/FormHairLayer.cs`,
@@ -474,6 +499,28 @@ The first true form, at early Hardmode.
   `form_ssj_flight`, `form_menu`. Run them with `ZENKAI_SHOT_FILTER=form_`.
 - Known gap: `form_burst` catches the end of the burst, so the ring barely shows in
   the shot; judge the burst in play.
+
+#### Form buffs and abilities (2026-11-14)
+User request: forms more useful, more interactive, more buffs and abilities. Built on top of
+the overhaul; `PLAN.md` (Transformations, as built) holds the as-built detail.
+- New `ModForm` fields: `KiCritBonus`, `EnduranceBonus`, `MaxKiBonus`, `KiRegenMultiplier`,
+  `KiCostMultiplier`, `ChargeRateMultiplier`, `LifeRegenBonus`, `SurgeBonus`,
+  `LightningInterval`, `DodgeCounter`. All applied per tick in `FormPlayer` for the active
+  form and the stacked one; the menu details panel lists them.
+- Perks: Kaioken surge (damage scales with missing life) and 1.5x charge rate; SSJ2 lightning
+  strikes the nearest foe within 320 px every 90 ticks in combat; Ultra Instinct counters a
+  dodged hit with a ki bolt at the attacker. The transform burst deals damage as well as
+  knockback now.
+- Scenes added: `form_ssj2_lightning`, `form_instinct_counter` (runner uses `DevInCombat`
+  and `DevForceDodge`). API notes verified against the installed build: `UpdateLifeRegen`
+  runs after `UpdateBadLifeRegen`; `StatModifier + float` is additive-percent, so flat max
+  ki uses `CombineWith(new StatModifier(1f, 1f, flat))`; `SoundID.DD2_LightningAuraZap` for
+  the strike; `PlayerDeathReason.TryGetCausingEntity` finds the attacker for the counter.
+- Numbers are starting points; the tuning pass with real enemies is still open.
+- Damage pass (same day, user: the boosts should be higher): `KiDamageBonus` (additive) became
+  `KiDamageMultiplier` (multiplicative, compounds with gear and with stacked forms). Ladder:
+  Kaioken x2/x3/x6/x10, SSJ x5/x10/x20, Potential x12, God x30, Blue x50, UI x40. The surge is
+  multiplicative too. Wheel and menu show "Ki damage xN".
 
 #### 3.5 Vertical slice review
 Phases 1 to 3 together are the slice. **Stop for the user to play** from a fresh

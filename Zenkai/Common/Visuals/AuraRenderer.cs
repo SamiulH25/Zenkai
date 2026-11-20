@@ -21,10 +21,10 @@ public readonly record struct AuraState(float Intensity, bool TailDown, float Sp
 /// </summary>
 public sealed class AuraRenderer : IDisposable
 {
-	/// <summary>Canvas size in art pixels. The texture is twice this.</summary>
-	public const int Size = 64;
+	const int MinimumSize = 64; // art pixels; grow to fit the actual flame, never crop it
+	const int CanvasStep = 16;
+	const int Padding = 4;
 	const int Scale = 2;
-	const int TexSize = Size * Scale;
 	const int MaxTongues = 16;
 	const float FullSpeed = 7f; // flight speed that gives the full SpeedStretch
 
@@ -39,9 +39,10 @@ public sealed class AuraRenderer : IDisposable
 	}
 
 	readonly Tongue[] tongues = new Tongue[MaxTongues];
-	readonly float[] depth = new float[Size * Size];
-	readonly Color[] pixels = new Color[TexSize * TexSize];
-	readonly bool[] keep = new bool[Size * Size];
+	float[] depth;
+	Color[] pixels;
+	bool[] keep;
+	int width, height;
 	readonly Random random;
 	// Per tick, per tongue: base point, direction, length, half width, curl.
 	readonly float[] tbx = new float[MaxTongues], tby = new float[MaxTongues], tdx = new float[MaxTongues],
@@ -64,7 +65,6 @@ public sealed class AuraRenderer : IDisposable
 		if (Main.GameUpdateCount == lastTick && texture != null)
 			return;
 		lastTick = Main.GameUpdateCount;
-		texture ??= new Texture2D(Main.instance.GraphicsDevice, TexSize, TexSize);
 
 		float pace = style.Flicker * (0.6f + 0.6f * state.Intensity);
 		time += pace;
@@ -123,6 +123,10 @@ public sealed class AuraRenderer : IDisposable
 		float waveAmp = style.EdgeWave * (0.7f + 0.5f * state.Intensity);
 		int count = Math.Min(style.TongueCount, MaxTongues);
 
+		// Include the whole rippling envelope, then bound every curved tongue below.
+		float extentX = r + 0.5f + waveAmp;
+		float extentY = seg + extentX;
+
 		// Tongue geometry for this tick.
 		for (int i = 0; i < count; i++) {
 			ref Tongue t = ref tongues[i];
@@ -143,12 +147,19 @@ public sealed class AuraRenderer : IDisposable
 			tlen[i] = t.MaxLength * grow * stretch;
 			thw[i] = t.HalfWidth * (0.6f + 0.4f * grow);
 			tcurl[i] = t.Curl;
+			// The centreline bends sideways by curl*k^2*(1 + length*0.08).
+			// Include that, the full width and the two-pixel root behind the base.
+			float along = Math.Max(2f, tlen[i]);
+			float across = Math.Abs(tcurl[i]) * (1f + tlen[i] * 0.08f) + Math.Max(1.1f, thw[i]);
+			extentX = Math.Max(extentX, Math.Abs(tbx[i]) + Math.Abs(tdx[i]) * along + Math.Abs(tdy[i]) * across);
+			extentY = Math.Max(extentY, Math.Abs(tby[i]) + Math.Abs(tdy[i]) * along + Math.Abs(tdx[i]) * across);
 		}
+		EnsureCanvas(extentX, extentY);
 
-		for (int y = 0; y < Size; y++) {
-			float py = y + 0.5f - Size / 2f;
-			for (int x = 0; x < Size; x++) {
-				float px = x + 0.5f - Size / 2f;
+		for (int y = 0; y < height; y++) {
+			float py = y + 0.5f - height / 2f;
+			for (int x = 0; x < width; x++) {
+				float px = x + 0.5f - width / 2f;
 				float s = py * axY;   // distance along the flame axis
 				float l = px;          // across it
 
@@ -177,23 +188,23 @@ public sealed class AuraRenderer : IDisposable
 					float bend = tcurl[i] * k * k * (1f + tlen[i] * 0.08f);
 					d = Math.Max(d, hw - Math.Abs(tl - bend));
 				}
-				depth[y * Size + x] = d;
+				depth[y * width + x] = d;
 			}
 		}
 
 		// Drop specks: pixels with fewer than two filled neighbours (thin tongue tips break up).
-		for (int y = 0; y < Size; y++) {
-			for (int x = 0; x < Size; x++) {
-				int i = y * Size + x;
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				int i = y * width + x;
 				if (depth[i] < 0f) {
 					keep[i] = false;
 					continue;
 				}
 				int n = 0;
 				if (x > 0 && depth[i - 1] >= 0f) n++;
-				if (x < Size - 1 && depth[i + 1] >= 0f) n++;
-				if (y > 0 && depth[i - Size] >= 0f) n++;
-				if (y < Size - 1 && depth[i + Size] >= 0f) n++;
+				if (x < width - 1 && depth[i + 1] >= 0f) n++;
+				if (y > 0 && depth[i - width] >= 0f) n++;
+				if (y < height - 1 && depth[i + width] >= 0f) n++;
 				keep[i] = n >= 2;
 			}
 		}
@@ -202,21 +213,38 @@ public sealed class AuraRenderer : IDisposable
 			mid = Premultiply(style.Mid), inner = Premultiply(style.Inner);
 		float b1 = style.EdgeWidth, b2 = b1 + style.RimWidth, b3 = b2 + style.HotWidth, b4 = b3 + style.MidWidth;
 
-		for (int y = 0; y < Size; y++) {
-			for (int x = 0; x < Size; x++) {
-				int i = y * Size + x;
+		int texWidth = width * Scale;
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				int i = y * width + x;
 				Color c = Color.Transparent;
 				if (keep[i]) {
 					float d = depth[i];
 					c = d < b1 ? edge : d < b2 ? rim : d < b3 ? hot : d < b4 ? mid : inner;
 				}
-				int o = y * Scale * TexSize + x * Scale;
+				int o = y * Scale * texWidth + x * Scale;
 				pixels[o] = c;
 				pixels[o + 1] = c;
-				pixels[o + TexSize] = c;
-				pixels[o + TexSize + 1] = c;
+				pixels[o + texWidth] = c;
+				pixels[o + texWidth + 1] = c;
 			}
 		}
+	}
+
+	// Grow in chunks and retain the high-water mark: no per-tick allocations or origin jitter.
+	void EnsureCanvas(float extentX, float extentY)
+	{
+		int neededWidth = Math.Max(MinimumSize, (int)Math.Ceiling((extentX + Padding) * 2f / CanvasStep) * CanvasStep);
+		int neededHeight = Math.Max(MinimumSize, (int)Math.Ceiling((extentY + Padding) * 2f / CanvasStep) * CanvasStep);
+		if (texture != null && neededWidth <= width && neededHeight <= height)
+			return;
+		width = Math.Max(width, neededWidth);
+		height = Math.Max(height, neededHeight);
+		texture?.Dispose();
+		texture = new Texture2D(Main.instance.GraphicsDevice, width * Scale, height * Scale);
+		depth = new float[width * height];
+		keep = new bool[width * height];
+		pixels = new Color[width * height * Scale * Scale];
 	}
 
 	// Textures in this game hold premultiplied colour.

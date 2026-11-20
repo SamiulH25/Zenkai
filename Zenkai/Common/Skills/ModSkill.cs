@@ -9,19 +9,21 @@ using Zenkai.Content.DamageClasses;
 
 namespace Zenkai.Common.Skills;
 
-public enum SkillKind { Blast, Beam, Melee, Movement, Utility }
+public enum SkillKind { Blast, Beam, Melee, Movement, Burst, Utility, Ultimate }
 
 /// <summary>
 /// A learnable ki skill. Subclasses are discovered automatically: adding a skill is one class
 /// plus its icon in Assets/Skills/&lt;Name&gt;.png and its text in the localisation file.
 ///
-/// Lifecycle, driven by <see cref="SkillPlayer"/>: press the slot key, <see cref="OnStart"/>,
+/// Lifecycle, driven by <see cref="SkillPlayer"/>: the skill's button goes down, <see cref="OnStart"/>,
 /// then (if <see cref="MaxCharge"/> &gt; 0) <see cref="OnChargeTick"/> while held, then on release
 /// the ki cost is spent and <see cref="OnRelease"/> fires; skills with a sustain phase then get
 /// <see cref="OnSustainTick"/> every tick, and finally <see cref="OnEnd"/>. Tap skills
 /// (no charge) fire on the press.
-/// All behaviour hooks run on every client for the owner's player; spawn projectiles only for
-/// the owner (<see cref="Spawn"/> does this).
+/// A skill instance is shared by every player, so state that outlives one activation lives in a
+/// data object per player: <see cref="SkillPlayer.Data{T}"/>.
+/// All behaviour hooks run for the owner's player; spawn projectiles only for the owner
+/// (<see cref="Spawn"/> does this).
 /// </summary>
 public abstract class ModSkill : ModType, ILocalizedModType
 {
@@ -34,10 +36,12 @@ public abstract class ModSkill : ModType, ILocalizedModType
 	public virtual LocalizedText LearnHint => this.GetLocalization(nameof(LearnHint), () => "");
 
 	public virtual string IconPath => $"{Mod.Name}/Assets/Skills/{Name}";
-	public Asset<Texture2D> Icon => ModContent.Request<Texture2D>(IconPath);
+	Asset<Texture2D> icon;
+	public Asset<Texture2D> Icon => icon ??= ModContent.Request<Texture2D>(IconPath);
 
 	// Definition. Set these in SetStaticDefaults.
 	public SkillKind Kind;
+	/// <summary>Orders the skill menu: roughly the stage of the game the skill belongs to.</summary>
 	public int Tier = 1;
 	public bool KnownFromStart;
 	/// <summary>Ki spent when the skill fires (on press for tap skills, on release for charged ones).</summary>
@@ -53,10 +57,11 @@ public abstract class ModSkill : ModType, ILocalizedModType
 	public int Recovery = 6;
 	public int BaseDamage;
 	public float Knockback;
+	public int ArmorPenetration;
 	public bool UsableWhileFlying = true;
-	/// <summary>Holding the key keeps firing whenever the cooldown allows.</summary>
+	/// <summary>Holding the button keeps firing whenever the cooldown allows.</summary>
 	public bool AutoRepeat;
-	/// <summary>The sustain phase ends when the key is let go.</summary>
+	/// <summary>The sustain phase ends when the button is let go.</summary>
 	public bool HoldToSustain;
 	/// <summary>Movement speed multiplier while charging (1 = unaffected).</summary>
 	public float ChargeMoveSpeed = 1f;
@@ -80,10 +85,17 @@ public abstract class ModSkill : ModType, ILocalizedModType
 		_ = LearnHint;
 	}
 
+	public override void Unload() => icon = null;
+
 	/// <summary>Ki cost at this moment, before the player's cost multiplier.</summary>
 	public virtual float GetCost(SkillPlayer sp) => KiCost;
 	/// <summary>Length of the sustain phase in ticks for a given charge (0 to 1). 0 means no sustain.</summary>
 	public virtual int SustainTicks(SkillPlayer sp, float charge) => 0;
+
+	/// <summary>True once the world or the player has met this skill's learning condition. Checked
+	/// about once a second for skills not yet learned. Trainers (phase 5) will teach most skills
+	/// instead; until then progression teaches them.</summary>
+	public virtual bool LearnCondition(SkillPlayer sp) => false;
 
 	public virtual bool CanUse(SkillPlayer sp) => true;
 	public virtual void OnStart(SkillPlayer sp) { }
@@ -93,12 +105,18 @@ public abstract class ModSkill : ModType, ILocalizedModType
 	public virtual bool OnSustainTick(SkillPlayer sp) => true;
 	/// <summary>Called when the skill finishes or is cancelled.</summary>
 	public virtual void OnEnd(SkillPlayer sp, bool cancelled) { }
+	/// <summary>Called every tick for a player who knows the skill, active or not (combo windows, timers).</summary>
+	public virtual void UpdatePassive(SkillPlayer sp) { }
 	/// <summary>Called every tick while the skill is active, after movement, to pose the arms.</summary>
 	public virtual void PoseArms(SkillPlayer sp)
 	{
 		float rotation = sp.Aim.ToRotation() - MathHelper.PiOver2;
 		sp.Player.SetCompositeArmFront(true, Player.CompositeArmStretchAmount.Full, rotation);
 	}
+
+	/// <summary>Where ki leaves the body: a little in front of the chest along the aim.</summary>
+	public static Vector2 HandPosition(SkillPlayer sp, float reach = 16f) =>
+		sp.Player.MountedCenter + new Vector2(0f, -2f) + sp.Aim * reach;
 
 	public int DamageFor(Player player, float multiplier = 1f) =>
 		(int)player.GetTotalDamage<KiDamageClass>().ApplyTo(BaseDamage * multiplier);
@@ -109,15 +127,16 @@ public abstract class ModSkill : ModType, ILocalizedModType
 	/// <summary>Spawns a ki projectile for the owner only, with damage, knockback and crit from the ki class.
 	/// Returns null on other clients.</summary>
 	public Projectile Spawn(SkillPlayer sp, Vector2 position, Vector2 velocity, int type, float damageMultiplier = 1f,
-		float knockbackMultiplier = 1f, float ai0 = 0f, float ai1 = 0f)
+		float knockbackMultiplier = 1f, float ai0 = 0f, float ai1 = 0f, float ai2 = 0f)
 	{
 		Player player = sp.Player;
 		if (player.whoAmI != Main.myPlayer)
 			return null;
 		int index = Projectile.NewProjectile(player.GetSource_Misc("Zenkai_" + Name), position, velocity, type,
-			DamageFor(player, damageMultiplier), KnockbackFor(player, knockbackMultiplier), player.whoAmI, ai0, ai1);
+			DamageFor(player, damageMultiplier), KnockbackFor(player, knockbackMultiplier), player.whoAmI, ai0, ai1, ai2);
 		Projectile projectile = Main.projectile[index];
 		projectile.CritChance = (int)player.GetTotalCritChance<KiDamageClass>();
+		projectile.ArmorPenetration += ArmorPenetration;
 		return projectile;
 	}
 }

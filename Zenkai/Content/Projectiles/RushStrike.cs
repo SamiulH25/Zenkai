@@ -14,7 +14,8 @@ namespace Zenkai.Content.Projectiles;
 
 /// <summary>
 /// The hitbox and swoosh of one melee strike. Rides along in front of the owner for a few ticks.
-/// ai[0] is the combo step (1-2 jab, 3 launcher, 4 chase hit); velocity holds the strike direction.
+/// ai[0] is the strike step (1-2 jab, 3 launcher, 4 chase hit, 5 heavy strike); velocity holds the
+/// strike direction.
 /// </summary>
 public class RushStrike : ModProjectile
 {
@@ -67,18 +68,21 @@ public class RushStrike : ModProjectile
 	{
 		Player owner = Main.player[Projectile.owner];
 		SkillPlayer sp = owner.GetModPlayer<SkillPlayer>();
-		bool heavy = Step >= 3;
+		bool heavy = Step >= Rush.StepLauncher;
 		sp.HitPause = heavy ? 5 : 3;
 		sp.Shake(heavy ? 5f : 2f, heavy ? 14 : 8);
 		if (heavy)
 			SoundEngine.PlaySound(SoundID.Item14 with { Volume = 0.45f, Pitch = 0.3f }, target.Center);
 
-		if (Step == 3) {
+		if (Step == Rush.StepLauncher) {
 			// Launcher: send it up as well as away, then open the chase window.
-			if (!target.boss && target.knockBackResist > 0f)
+			if (!target.boss && target.knockBackResist > 0f) {
 				target.velocity.Y = -LaunchLift * target.knockBackResist;
-			sp.ChaseTarget = target.whoAmI;
-			sp.ChaseTimer = Rush.ChaseWindow;
+				target.netUpdate = true;
+			}
+			Rush.Combo combo = Rush.ComboOf(sp);
+			combo.ChaseTarget = target.whoAmI;
+			combo.ChaseTimer = Rush.ChaseWindow;
 		}
 
 		if (Projectile.owner == Main.myPlayer) {
